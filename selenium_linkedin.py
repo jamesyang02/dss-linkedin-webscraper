@@ -37,7 +37,7 @@ if (driver.title.__contains__("Sign")):
         login_password.clear()
         login_username.send_keys(session_username)
         login_password.send_keys(session_password, Keys.ENTER)
-        time.sleep(3)
+        time.sleep(5)
 
 # get the company name as input
 company = input("Please input a company name: ")
@@ -46,6 +46,8 @@ search_bar = driver.find_element(By.XPATH, "/html/body/div[5]/header/div/div/div
 occupation = input("Please input a job type: ")
 # search!
 search_bar.send_keys(company + " " + occupation, Keys.ENTER)
+time.sleep(5)
 
 # navigate to the list of all people
-driver.find_element(By.XPATH, "/html/body/div[5]/div[3]/div[2]/div/div[1]/main/div/div/div[1]/div/div[2]/a").click()
+
+driver.find_element(By.XPATH, "//a[contains(text(), 'See all people results')]").click()
