@@ -49,3 +49,5 @@ search_bar.send_keys(company + " " + occupation, Keys.ENTER)
 
 # navigate to the list of all people
 driver.find_element(By.XPATH, "/html/body/div[5]/div[3]/div[2]/div/div[1]/main/div/div/div[1]/div/div[2]/a").click()
+
+
