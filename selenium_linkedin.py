@@ -37,7 +37,9 @@ if (driver.title.__contains__("Sign")):
         login_password.clear()
         login_username.send_keys(session_username)
         login_password.send_keys(session_password, Keys.ENTER)
-        time.sleep(5)
+
+    # wait after inputting
+    time.sleep(2.5)
 
 # get the company name as input
 company = input("Please input a company name: ")
@@ -46,8 +48,19 @@ search_bar = driver.find_element(By.XPATH, "/html/body/div[5]/header/div/div/div
 occupation = input("Please input a job type: ")
 # search!
 search_bar.send_keys(company + " " + occupation, Keys.ENTER)
-time.sleep(5)
+time.sleep(2.5)
 
 # navigate to the list of all people
-
 driver.find_element(By.XPATH, "//a[contains(text(), 'See all people results')]").click()
+
+# collect all the links to profiles in an array
+all_people_links = []
+
+"""
+Plan of action once we are on the list of all profiles:
+1. Grab all profile links and store in array for later use
+2. Visit profile links one by one
+3. Run Apollo on each page to get emails
+
+4. Package names, profiles, and emails nicely and export
+"""
