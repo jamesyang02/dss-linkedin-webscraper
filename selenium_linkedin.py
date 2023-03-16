@@ -8,6 +8,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+import getpass
 
 options = webdriver.ChromeOptions() # opens browser
 # options.add_argument("--headless=new") # makes it faster, but you won't see what's happening
@@ -28,7 +29,7 @@ if (driver.title.__contains__("Sign")):
     while(driver.title.__contains__("Sign")):
         # ask for credentials
         session_username = input("Email: ")
-        session_password = input("Password: ")
+        session_password = getpass.getpass() #input("Password: ")
         # find the username and password bars from the linkedin login page
         login_username = driver.find_element(By.XPATH, "/html/body/div/main/div[2]/div[1]/form/div[1]/input")
         login_password = driver.find_element(By.XPATH, "/html/body/div/main/div[2]/div[1]/form/div[2]/input")
