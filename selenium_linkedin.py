@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import getpass
+import pandas as pd
 
 options = webdriver.ChromeOptions() # opens browser
 # options.add_argument("--headless=new") # makes it faster, but you won't see what's happening
@@ -29,7 +30,7 @@ if (driver.title.__contains__("Sign")):
     while(driver.title.__contains__("Sign")):
         # ask for credentials
         session_username = input("Email: ")
-        session_password = getpass.getpass() #input("Password: ")
+        session_password = getpass.getpass() # makes the password input protected (not visible)
         # find the username and password bars from the linkedin login page
         login_username = driver.find_element(By.XPATH, "/html/body/div/main/div[2]/div[1]/form/div[1]/input")
         login_password = driver.find_element(By.XPATH, "/html/body/div/main/div[2]/div[1]/form/div[2]/input")
@@ -66,11 +67,24 @@ for link in all_links:
 
 print(all_profile_links)
 
+names = []
+emails = []
 """
 Plan of action once we are on the list of all profiles:
 1. Grab all profile links and store in array for later use
 2. Visit profile links one by one
 3. Run Apollo on each page to get emails
 
-4. Package names, profiles, and emails nicely and export
+4. Package names, profiles, and emails nicely and export -- Preetha
 """
+
+
+# Converts the given information (sames, email, occupation, company, profile links)
+data = {'Name': names, 'Email': emails, 'Company' : [company]*len(names), 'Occupation': [occupation]*len(names), 
+        'Profile': all_profile_links}
+df = pd.DataFrame(data)
+df.to_csv('out.csv')
+compression_opts = dict(method='zip',
+                        archive_name='out.csv')  
+df.to_csv('out.zip', index=False,
+          compression=compression_opts) 
