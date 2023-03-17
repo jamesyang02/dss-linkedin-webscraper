@@ -53,9 +53,18 @@ time.sleep(2.5)
 
 # navigate to the list of all people
 driver.find_element(By.XPATH, "//a[contains(text(), 'See all people results')]").click()
+time.sleep(5)
 
 # collect all the links to profiles in an array
-all_people_links = []
+all_link_blocks = driver.find_elements(By.TAG_NAME, "a")
+all_links = [block.get_attribute("href") for block in all_link_blocks]
+
+all_profile_links = []
+for link in all_links:
+    if link.find("/in/") > 0:
+        all_profile_links.append(link)
+
+print(all_profile_links)
 
 """
 Plan of action once we are on the list of all profiles:
