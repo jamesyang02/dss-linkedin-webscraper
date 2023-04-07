@@ -50,25 +50,32 @@ search_bar = driver.find_element(By.XPATH, "/html/body/div[5]/header/div/div/div
 occupation = input("Please input a job type: ")
 # search!
 search_bar.send_keys(company + " " + occupation, Keys.ENTER)
-time.sleep(2.5)
+time.sleep(5)
 
 # navigate to the list of all people
 driver.find_element(By.XPATH, "//a[contains(text(), 'See all people results')]").click()
 time.sleep(5)
 
 # collect all the links to profiles in an array
-all_link_blocks = driver.find_elements(By.TAG_NAME, "a")
-all_links = [block.get_attribute("href") for block in all_link_blocks]
+all_link_blocks = driver.find_elements(By.CLASS_NAME, "entity-result")
+all_profile_links = [block.find_element(By.CLASS_NAME, "app-aware-link").get_attribute("href") for block in all_link_blocks]
 
-all_profile_links = []
-for link in all_links:
-    if link.find("/in/") > 0:
-        all_profile_links.append(link)
+all_profiles_length = len(all_profile_links)
+cleaned_profiles = []
+for link in all_profile_links:
+    if "/in" in link:
+        cleaned_profiles.append(link)
 
-print(all_profile_links)
+# display number of links after cleaning
+print("Found ", all_profiles_length, "links")
+print("after James's flaming laser sword, ", len(cleaned_profiles), " links remain")
+
+
+print(all_profile_links[0], all_profile_links[1], all_profile_links[2])
 
 names = []
 emails = []
+
 """
 Plan of action once we are on the list of all profiles:
 1. Grab all profile links and store in array for later use
