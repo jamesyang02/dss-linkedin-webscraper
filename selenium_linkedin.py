@@ -96,10 +96,29 @@ for link in cleaned_profiles:
     driver.get(link)
     # sleep to wait for the Apollo tab to open automatically
     time.sleep(6)
-    driver.find_element(By.CLASS_NAME, "x_LQDkG").click()
+
+    # click the div that reveals the email
+    try:
+        driver.find_element(By.CLASS_NAME, "x_LQDkG").click()
+    except:
+        print("Emails already shown!")
     time.sleep(1)
+
+    # grab the name!
+    this_name = driver.find_element(By.CLASS_NAME, "x_SULq8").text
+    names.append(this_name)
+    print(this_name)
+
+    # grab the email!
+    try:
+        this_email = driver.find_element(By.CLASS_NAME, "x_GxQlI").text
+        emails.append(this_email)
+    except:
+        print("No valid email!")
+        emails.append("NaN")
+    # if except, appends None. If successful, appends email
     
-    apollo_wait = input("Hit enter")
+    print(this_email)
 
 
 
