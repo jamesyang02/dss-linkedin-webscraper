@@ -12,6 +12,11 @@ import getpass
 import pandas as pd
 
 options = webdriver.ChromeOptions() # opens browser
+
+# options to add apollo as an extension
+options = webdriver.ChromeOptions()
+options.add_extension('./Apollo-io.crx')
+
 # options.add_argument("--headless=new") # makes it faster, but you won't see what's happening
 options.add_argument("--ignore-certificate-errors")
 options.add_experimental_option("detach", True) 
@@ -45,7 +50,7 @@ if (driver.title.__contains__("Sign")):
 
 # get the company name as input
 company = input("Please input a company name: ")
-search_bar = driver.find_element(By.XPATH, "/html/body/div[5]/header/div/div/div/div[1]/input")
+search_bar = driver.find_element(By.CLASS_NAME, "search-global-typeahead__input")
 # get the occupation as input
 occupation = input("Please input a job type: ")
 # search!
@@ -60,35 +65,53 @@ time.sleep(5)
 all_link_blocks = driver.find_elements(By.CLASS_NAME, "entity-result")
 all_profile_links = [block.find_element(By.CLASS_NAME, "app-aware-link").get_attribute("href") for block in all_link_blocks]
 
-all_profiles_length = len(all_profile_links)
+# remove links that do not lead directly to profiles
 cleaned_profiles = []
 for link in all_profile_links:
     if "/in" in link:
         cleaned_profiles.append(link)
 
 # display number of links after cleaning
-print("Found ", all_profiles_length, "links")
+print("Found ", len(all_profile_links), "links")
 print("after James's flaming laser sword, ", len(cleaned_profiles), " links remain")
 
-
-print(all_profile_links[0], all_profile_links[1], all_profile_links[2])
-
-names = []
-emails = []
+# this doesn't work yet, idk why it's so hard to press the next button
+# next_button = driver.find_element(By.ID, "ember443")
 
 """
 Plan of action once we are on the list of all profiles:
-1. Grab all profile links and store in array for later use
+1. Grab all profile links and store in array for later use, DONE for first page, need way to do multiple pages of results -- James
 2. Visit profile links one by one
 3. Run Apollo on each page to get emails
 
 4. Package names, profiles, and emails nicely and export -- Preetha
 """
+# wait for Apollo login manually lol (will fix later hopefully)
+apollo_wait = input("Hit Enter once signed into Apollo to continue!")
+
+# create name and email columns / arrays
+names = []
+emails = []
+for link in cleaned_profiles:
+    driver.get(link)
+    # sleep to wait for the Apollo tab to open automatically
+    time.sleep(6)
+    driver.find_element(By.CLASS_NAME, "x_LQDkG").click()
+    time.sleep(1)
+    
+    apollo_wait = input("Hit enter")
+
+
+
+
+
+# visit each page individually and run Apollo on every link
+
 
 
 # Converts the given information (sames, email, occupation, company, profile links)
 data = {'Name': names, 'Email': emails, 'Company' : [company]*len(names), 'Occupation': [occupation]*len(names), 
-        'Profile': all_profile_links}
+        'Profile': cleaned_profiles}
 df = pd.DataFrame(data)
 df.to_csv('out.csv')
 compression_opts = dict(method='zip',
