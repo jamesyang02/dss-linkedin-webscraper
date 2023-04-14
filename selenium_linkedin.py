@@ -17,8 +17,11 @@ options = webdriver.ChromeOptions() # opens browser
 options = webdriver.ChromeOptions()
 options.add_extension('./Apollo-io.crx')
 
+# get rid of the ugly warnings from Selenium
+options.add_experimental_option('excludeSwitches', ['enable-logging'])
+options.add_argument("ignore-certificate-errors")
+
 # options.add_argument("--headless=new") # makes it faster, but you won't see what's happening
-options.add_argument("--ignore-certificate-errors")
 options.add_experimental_option("detach", True) 
 service = Service(ChromeDriverManager().install()) # installs the chrome that this webdriver will use
 driver = webdriver.Chrome(options=options, service=service)
@@ -36,6 +39,7 @@ if (driver.title.__contains__("Sign")):
         # ask for credentials
         session_username = input("Email: ")
         session_password = getpass.getpass() # makes the password input protected (not visible)
+        print()
         # find the username and password bars from the linkedin login page
         login_username = driver.find_element(By.XPATH, "/html/body/div/main/div[2]/div[1]/form/div[1]/input")
         login_password = driver.find_element(By.XPATH, "/html/body/div/main/div[2]/div[1]/form/div[2]/input")
@@ -48,16 +52,27 @@ if (driver.title.__contains__("Sign")):
     # wait after inputting
     time.sleep(2.5)
 
-# get the company name as input
-company = input("Please input a company name: ")
-search_bar = driver.find_element(By.CLASS_NAME, "search-global-typeahead__input")
-# get the occupation as input
-occupation = input("Please input a job type: ")
-# search!
-search_bar.send_keys(company + " " + occupation, Keys.ENTER)
-time.sleep(5)
+# THIS IS A LOOP FOR COMPANY AND JOB SEARCH
+search_successful = 0
+while search_successful == 0:
+    # get the company name as input
+    company = input("Please input a company name: ")
+    search_bar = driver.find_element(By.CLASS_NAME, "search-global-typeahead__input")
+    # get the occupation as input
+    occupation = input("Please input a job type: ")
+    # clear search bar and search!
+    search_bar.clear()
+    search_bar.send_keys(company + " " + occupation, Keys.ENTER)
+    time.sleep(5)
+    # after searching, make sure that results are actually shown eg. you're not on the "no results found" page
+    try:
+        driver.find_element(By.XPATH, "//a[contains(text(), 'See all people results')]")
+    except:
+        print("Improper results returned! Have you spelled everything correctly? \n")
+    else:
+        search_successful = 1
 
-# navigate to the list of all people
+# navigate to the list of all people ("See all people results")
 driver.find_element(By.XPATH, "//a[contains(text(), 'See all people results')]").click()
 time.sleep(5)
 
@@ -72,8 +87,8 @@ for link in all_profile_links:
         cleaned_profiles.append(link)
 
 # display number of links after cleaning
-print("Found ", len(all_profile_links), "links")
-print("after James's flaming laser sword, ", len(cleaned_profiles), " links remain")
+print("\nFound ", len(all_profile_links), "links")
+print("after James's flaming laser sword, ", len(cleaned_profiles), " links remain \n")
 
 # this doesn't work yet, idk why it's so hard to press the next button
 # next_button = driver.find_element(By.ID, "ember443")
@@ -87,45 +102,77 @@ Plan of action once we are on the list of all profiles:
 4. Package names, profiles, and emails nicely and export -- Preetha
 """
 # wait for Apollo login manually lol (will fix later hopefully)
-apollo_wait = input("Hit Enter once signed into Apollo to continue!")
+apollo_login_successful = 0
+while apollo_login_successful == 0:
+    apollo_wait = input("Hit Enter once signed into Apollo to continue! \n")
+    # unmovable Apollo sidebar icon has classname x_bfaN0
+    # movable Apollo sidebar icon has classname   x_ra5C3
+    # check to see if signed into Apollo
+    try:
+        driver.find_element(By.CLASS_NAME, "x_ra5C3")
+    except:
+        apollo_override = input("Apollo login not detected! Try again (hit Enter) or override (enter 'y'): ")
+        # if override, treat as if login was successful
+        if apollo_override.lower() == "y":
+            apollo_login_successful = 1
+            print("Continuing...\n")
+        else:
+            continue
+    else:
+        apollo_login_successful = 1
+
+
 
 # create name and email columns / arrays
 names = []
 emails = []
+
+# one big try catch to make sure Apollo works before telling the user they can sit back
+print("One last check to make sure everything is working...")
+try:
+    driver.get(cleaned_profiles[0])
+    time.sleep(6)
+    driver.find_element(By.CLASS_NAME, "x_SULq8").text
+except:
+    print("Couldn't find information with Apollo! Exiting the webscraper...")
+    quit()
+else:
+    print("Everything looks good! Beginning the scraping process! Sit back and relax...\n")
+
+# visit each page individually and run Apollo on every link
 for link in cleaned_profiles:
     driver.get(link)
     # sleep to wait for the Apollo tab to open automatically
     time.sleep(6)
 
+    # grab the name! Adding a try and FAIL if Apollo was overridden and not signed in
+    try:
+        driver.find_element(By.CLASS_NAME, "x_SULq8").text
+    except:
+        print("Couldn't find information with Apollo! Exiting the webscraper...")
+        quit()
+    else:
+        this_name = driver.find_element(By.CLASS_NAME, "x_SULq8").text
+        names.append(this_name)
+        print(this_name)
+
     # click the div that reveals the email
     try:
         driver.find_element(By.CLASS_NAME, "x_LQDkG").click()
     except:
-        print("Emails already shown!")
+        pass
     time.sleep(1)
-
-    # grab the name!
-    this_name = driver.find_element(By.CLASS_NAME, "x_SULq8").text
-    names.append(this_name)
-    print(this_name)
 
     # grab the email!
     try:
         this_email = driver.find_element(By.CLASS_NAME, "x_GxQlI").text
-        emails.append(this_email)
+    # if except, appends NaN. If successful, appends email
     except:
-        print("No valid email!")
+        print("No valid email!\n")
         emails.append("NaN")
-    # if except, appends None. If successful, appends email
-    
-    print(this_email)
-
-
-
-
-
-# visit each page individually and run Apollo on every link
-
+    else:
+        emails.append(this_email)
+        print(this_email + "\n")
 
 
 # Converts the given information (sames, email, occupation, company, profile links)
@@ -137,3 +184,5 @@ compression_opts = dict(method='zip',
                         archive_name='out.csv')  
 df.to_csv('out.zip', index=False,
           compression=compression_opts) 
+
+print("Scraping complete! Check the webscraper folder for out.csv")
