@@ -21,6 +21,7 @@ options.add_extension('./Apollo-io.crx')
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
 options.add_argument("ignore-certificate-errors")
 
+# SO NO HEAD????
 # options.add_argument("--headless=new") # makes it faster, but you won't see what's happening
 options.add_experimental_option("detach", True) 
 service = Service(ChromeDriverManager().install()) # installs the chrome that this webdriver will use
@@ -30,8 +31,11 @@ wait = WebDriverWait(driver, 10)
 driver.get("https://www.linkedin.com/uas/login")
 # create a expectation condition for waiting
 wait.until(EC.title_contains("Sign"))
+# switch to the linkedin tab
+driver.switch_to.window(driver.window_handles[0])
 
 
+# OLD MANUAL LOGIN METHOD
 # login sequence
 if (driver.title.__contains__("Sign")):
     print("Please login to LinkedIn to use the webscraper:")
@@ -51,6 +55,17 @@ if (driver.title.__contains__("Sign")):
 
     # wait after inputting
     time.sleep(2.5)
+
+"""
+# NEW AUTO LOGIN METHOD unfortunately doesn't work
+# login sequence
+login_username = driver.find_element(By.ID, "username")
+login_password = driver.find_element(By.ID, "password")
+# input credentials
+login_username.send_keys("dssberkeley.tech@gmail.com")
+login_password.send_keys("TechWithZek420", Keys.ENTER)
+time.sleep(5)
+"""
 
 # THIS IS A LOOP FOR COMPANY AND JOB SEARCH
 search_successful = 0
@@ -101,6 +116,7 @@ Plan of action once we are on the list of all profiles:
 
 4. Package names, profiles, and emails nicely and export -- Preetha
 """
+"""
 # wait for Apollo login manually lol (will fix later hopefully)
 apollo_login_successful = 0
 while apollo_login_successful == 0:
@@ -121,7 +137,23 @@ while apollo_login_successful == 0:
     else:
         apollo_login_successful = 1
 
+"""
 
+# login to Apollo
+# store the linkedin tab
+original_window = driver.current_window_handle
+# open a new tab
+driver.switch_to.new_window('tab')
+# go to apollo
+driver.get("https://app.apollo.io/#/login")
+time.sleep(2)
+driver.find_element(By.CLASS_NAME, "zp_kxUTD").click()
+time.sleep(1)
+driver.find_element(By.CLASS_NAME, "whsOnd").send_keys("dssberkeley.tech", Keys.ENTER)
+time.sleep(1)
+driver.find_element(By.CLASS_NAME, "whsOnd").send_keys("TechWithZek420", Keys.ENTER)
+# return to linkedin tab
+driver.switch_to.window(original_window)
 
 # create name and email columns / arrays
 names = []
