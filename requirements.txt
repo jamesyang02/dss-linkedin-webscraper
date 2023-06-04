@@ -1,0 +1,6 @@
+###### Requirements without Version Specifiers ######
+selenium
+webdriver_manager
+pandas
+
+###### Requirements with Version Specifiers ######
