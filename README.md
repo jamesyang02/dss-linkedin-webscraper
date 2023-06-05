@@ -1,5 +1,6 @@
 # dss-linkedin-webscraper
 LinkedIn profile and email webscraper for DSS @ Berkeley
+
 Developed by James Yang and Preetha Kumar
 
 This project is still in its baby stage! Bugs are likely.
