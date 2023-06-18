@@ -5,11 +5,18 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 
+# webdriver and wait imports
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+
+# UI and logging imports
+import tkinter # Python 3.x
+from tkinter import ttk
+from threading import Thread
+
+# output imports
 from datetime import datetime
-import tkinter
 import pandas as pd
 
 # fun imports
@@ -34,13 +41,20 @@ LINKEDIN_EMAIL = "dssberkeley.tech@gmail.com"
 global LINKEDIN_PASSWORD
 LINKEDIN_PASSWORD = "TechWithZek420"
 
-# SESSION VARIABLE NAMES for reference (I <3 spaghetti code)
+# SESSION VARIABLE NAMES for reference, defined globally in enter_data (I <3 spaghetti code)
 """
 SESSION_EMAIL
 SESSION_PASSWORD
 SESSION_COMPANY
 SESSION_JOB
 """
+# Another check for the logger to see if the webscraper is done
+global SCRAPER_SUCCESS
+SCRAPER_SUCCESS = False
+
+# The single worst variable I have ever declared
+global CURRENT_LOG_MESSAGE
+CURRENT_LOG_MESSAGE = "" # keeps track of the current tkinter logger message
 
 # opens browser
 # display opening splash text
@@ -48,7 +62,7 @@ splash_texts = ["Starting up...",
     "Firing up the webscraper...",
     "Initializing systems...",
     "Connecting to smart fridge...",
-    "Cleaning flux capacitors...",
+    "Charging flux capacitors...",
     "Prepare for world destruction!...",
     "Beam me up, Scotty!...",
     "Engaging hyperdrive...",
@@ -62,6 +76,7 @@ splash_texts = ["Starting up...",
     "I'm not paid enough for this...",
     "DSS Tech Committee is the best!...",
     "Get down Mrs. Obama!!...",
+    "All hail Zack!..."
 ]
 print(splash_texts[random.randrange(0, len(splash_texts) - 1)])
 options = webdriver.ChromeOptions()
@@ -110,8 +125,34 @@ def run_tkinter():
         SESSION_PASSWORD = linkedin_password_input.get()
         SESSION_COMPANY = company_name_input.get()
         SESSION_JOB = job_title_input.get()
-        # close tkinter window
-        app_window.destroy()
+
+        input_error_list = []
+        # check if all inputs are filled
+        if(SESSION_EMAIL == ""):
+            input_error_list.append("LinkedIn Email")
+        if(SESSION_PASSWORD == ""):
+            input_error_list.append("LinkedIn Password")
+        if(SESSION_COMPANY == "" and SESSION_JOB == ""):
+            input_error_list.append("Company Name or Job Title")
+        if(input_error_list != []):
+            # open tkinter window for input error
+            input_error_window = tkinter.Tk()
+            input_error_window.title("Input Error!")
+            input_error_frame = tkinter.Frame(input_error_window, padx=10, pady=10)
+            input_error_frame.pack()
+            input_error_label = tkinter.Label(input_error_frame,
+                                              text="Input Error! Please fill in the following fields:\n" \
+                                                + ', '.join(input_error_list))
+            input_error_label.pack()
+            input_error_button = tkinter.Button(input_error_frame,
+                                                text="OK",
+                                                command=input_error_window.destroy,
+                                                width=15)
+            input_error_button.pack()
+            input_error_window.mainloop()
+        else:
+            # close tkinter window
+            app_window.destroy()
 
     # close tkinter window if EXIT button pressed
     def exit_tkinter():
@@ -159,6 +200,9 @@ def run_tkinter():
     button = tkinter.Button(submit_frame, text="Scrape!", command=enter_data, width=35)
     button.grid(row=2, column=1, padx=10, pady=10)
 
+    # focus on the email form (place the cursor there)
+    linkedin_email_input.focus()
+
     # mainloop window
     app_window.mainloop()
 
@@ -173,10 +217,45 @@ def signin_error_window():
     error_button = tkinter.Button(error_frame, text="Try Again", command=error_window.destroy)
     error_button.grid(row=1, column=0, padx=10, pady=10)
     error_window.mainloop()
+    return
 
+# LOGGING WINDOW FUNCTION
+def run_tkinter_logging():
+    # helper function for updating logging window text
+    def update_logging_window_text():
+        logging_label.configure(text=CURRENT_LOG_MESSAGE)
+        logging_window.update_idletasks()
+        if SCRAPER_SUCCESS == True:
+            progress_bar.stop()
+        logging_window.after(200, update_logging_window_text)
+
+    # create new tkinter window
+    logging_window = tkinter.Tk()
+    logging_window.geometry("700x175")
+    logging_window.title("Scraping...")
+    logging_frame = tkinter.Frame(logging_window)
+    logging_frame.pack()
+
+    # logging window text and progress bar
+    logging_label = tkinter.Label(logging_frame, text=CURRENT_LOG_MESSAGE)
+    progress_bar = ttk.Progressbar(logging_frame, orient="horizontal", length=400, mode="indeterminate")
+
+    logging_label.grid(row=0, column=0, padx=30, pady=10)
+    progress_bar.grid(row=1, column=0, padx=30, pady=10)
+    progress_bar.start()
+
+    # button to exit
+    logging_button = tkinter.Button(logging_frame, text="Exit", command=logging_window.destroy, width=15)
+    logging_button.grid(row=2, column=0, padx=10, pady=10)
+
+    # mainloop window, update every second to check for new log messages
+    logging_window.after(1000, update_logging_window_text)
+    logging_window.mainloop()
+    return
 # OLD MANUAL LOGIN METHOD (in use for now)
 # run tkinter window
 run_tkinter()
+
 # need this outer loop in case some day the webscraper magically autosigns in with stored credentials or whatever
 if (driver.title.__contains__("Sign")):
     # 
@@ -206,9 +285,15 @@ if (driver.title.__contains__("Sign")):
             signin_error_window()
             run_tkinter()
     # wait after successful login
-    print("\nData entered! Logging in for " + SESSION_EMAIL + "...")
-    print()
     time.sleep(2.5)
+
+# After tkinter window is closed and login completes, start new thread for logging
+tkinter_logging = Thread(target=run_tkinter_logging)
+print("\nLogged in as " + SESSION_EMAIL + "...")
+print()
+# Update the logger message
+CURRENT_LOG_MESSAGE = "Logged in as " + SESSION_EMAIL + "..."
+tkinter_logging.start()
 """
 # NEW AUTO LOGIN METHOD unfortunately doesn't work
 # login sequence
@@ -236,10 +321,11 @@ else:
 # THIS IS THE LOOP FOR COMPANY AND JOB SEARCH
 search_successful = 0
 while search_successful == 0:
-    current_link = driver.current_url
-    print("Searching for " + SESSION_COMPANY + " " + SESSION_JOB + "...")
+    search_link = driver.current_url
+    print("Searching for \"" + SESSION_COMPANY + " " + SESSION_JOB + "\"...")
+    CURRENT_LOG_MESSAGE = "Searching for " + SESSION_COMPANY + " " + SESSION_JOB + "..."
     # find the search bar
-    # shenanigans, sometimes the search bar is collapsed
+    # clicking shenanigans, sometimes the search bar is collapsed
     try:
         driver.find_element(By.CLASS_NAME, "search-global-typeahead__collapsed-search-button-icon").click()
     except:
@@ -253,7 +339,7 @@ while search_successful == 0:
     company = SESSION_COMPANY
     # get the occupation as input
     occupation = SESSION_JOB
-    # clear search bar and search!
+    # clear search bar and search! We assume inputs are valid from cleaning earlier
     search_bar.clear()
     search_bar.send_keys(company + " " + occupation, Keys.ENTER)
     time.sleep(2.5)
@@ -262,8 +348,10 @@ while search_successful == 0:
         driver.find_element(By.XPATH, "//a[contains(text(), 'See all people results')]")
     except:
         print("Improper results returned! Have you spelled everything correctly? \n")
-        driver.get(current_link)
-        run_tkinter()
+        CURRENT_LOG_MESSAGE = "Searching for " + SESSION_COMPANY + " " + SESSION_JOB + \
+            "... \n Improper results returned! Have you spelled everything correctly?"
+        driver.get(search_link)
+        # run_tkinter_stripped() TODO: implement this, only include company and occupation
     else:
         search_successful = 1
 
@@ -282,7 +370,8 @@ for link in all_profile_links:
         cleaned_profiles.append(link)
 
 # display number of links after cleaning
-print("Found", len(cleaned_profiles), "valid links!\n")
+print("Found " + str(len(cleaned_profiles)) + " valid links!")
+CURRENT_LOG_MESSAGE = "Found " + str(len(cleaned_profiles)) + " valid links! Signing into Apollo..."
 
 # this doesn't work yet, idk why it's so hard to press the next button
 # next_button = driver.find_element(By.ID, "ember443")
@@ -337,6 +426,8 @@ try:
 except:
     print("Apollo login failed! Exiting the webscraper...")
     print("Please tell James if this happens often, ty <3")
+    CURRENT_LOG_MESSAGE = "Apollo login failed! Exiting the webscraper..." + \
+                            "\n Please tell James if this happens often, ty <3"
     driver.quit()
     quit()
 else:
@@ -348,24 +439,50 @@ emails = []
 
 # one big try catch to make sure Apollo works before telling the user they can sit back
 print("Running one last check to make sure everything is working...")
+CURRENT_LOG_MESSAGE = "Running one last check to make sure everything is working..."
 try:
+    time.sleep(2)
     driver.get(cleaned_profiles[0])
     time.sleep(6)
     driver.find_element(By.CLASS_NAME, "x_SULq8").text
 except:
-    print("Couldn't find information with Apollo! A page may have loaded too slowly.")
+    print("Couldn't find information with Apollo! A page may have loaded too slowly or Apollo sign-in failed.")
     print("Please tell James if this happens often, ty <3")
     print("Exiting the webscraper...")
+    CURRENT_LOG_MESSAGE = "Couldn't find information with Apollo! A page may have loaded too slowly or Apollo sign-in failed." + \
+                            "\n Please tell James if this happens often, ty <3" + \
+                            "\n Exiting the webscraper..."
     driver.quit()
     quit()
 else:
     print("Everything looks good! Beginning the scraping process! Sit back and relax...\n")
+    CURRENT_LOG_MESSAGE = "Everything looks good! Beginning the scraping process! Sit back and relax..."
+    this_name = driver.find_element(By.CLASS_NAME, "x_SULq8").text
+    names.append(this_name)
+    print(this_name)
+    # click the div that reveals the email (if it exists)
+    try:
+        driver.find_element(By.CLASS_NAME, "x_LQDkG").click()
+    except:
+        pass
+    else:
+        time.sleep(1)
+    # grab the email!
+    try:
+        this_email = driver.find_element(By.CLASS_NAME, "x_GxQlI").text
+    # if except, appends NaN. If successful, appends email
+    except:
+        print("No valid email!\n")
+        emails.append("NaN")
+    else:
+        emails.append(this_email)
+        print(this_email + "\n")
 
 # visit each page individually and run Apollo on every link
-for link in cleaned_profiles:
-    driver.get(link)
+for i in range(1, len(cleaned_profiles)):
+    driver.get(cleaned_profiles[i])
     # wait for the Apollo tab to open automatically
-    time.sleep(5.3)
+    time.sleep(6)
 
     # grab the name! Adding a try and FAIL if Apollo was overridden and not signed in
     try:
@@ -374,21 +491,22 @@ for link in cleaned_profiles:
         print("Couldn't find information with Apollo! A page may have loaded too slowly.")
         print("Please tell James if this happens often, ty <3")
         print("Exiting the webscraper...")
+        CURRENT_LOG_MESSAGE = "Couldn't find information with Apollo! A page may have loaded too slowly." + \
+                            "\n Please tell James if this happens often, ty <3" + \
+                            "\n Exiting the webscraper..."
         driver.quit()
         quit()
     else:
         this_name = driver.find_element(By.CLASS_NAME, "x_SULq8").text
         names.append(this_name)
         print(this_name)
-
     # click the div that reveals the email (if it exists)
     try:
         driver.find_element(By.CLASS_NAME, "x_LQDkG").click()
     except:
         pass
     else:
-        time.sleep(0.6)
-
+        time.sleep(1)
     # grab the email!
     try:
         this_email = driver.find_element(By.CLASS_NAME, "x_GxQlI").text
@@ -422,4 +540,6 @@ df.to_csv('out.zip', index=False,
           compression=compression_opts)
 
 print("Scraping complete! Outputs stored in", output_filepath)
+CURRENT_LOG_MESSAGE = "Scraping complete! Outputs stored in " + output_filepath
+SCRAPER_SUCCESS = True
 driver.quit()
