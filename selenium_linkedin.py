@@ -69,14 +69,14 @@ splash_texts = ["Starting up...",
     "Elevator music...",
     "Loading...",
     "Not again...",
-    "Why are you running?...",
     "Are you sure this version was cleared for production?...",
-    "Why are you still here?...",
     "This is not the webscraper you're looking for...",
     "I'm not paid enough for this...",
     "DSS Tech Committee is the best!...",
     "Get down Mrs. Obama!!...",
-    "All hail Zack!..."
+    "All hail Zack!...",
+    "I really hope this works...",
+    "Secret message..."
 ]
 print(splash_texts[random.randrange(0, len(splash_texts) - 1)])
 options = webdriver.ChromeOptions()
@@ -91,19 +91,25 @@ options.add_argument("ignore-certificate-errors")
 
 # SO NO HEAD???? (gets rid of visible chrome window)
 options.add_argument("--headless=new") # makes it faster, but you won't see what's happening
+options.add_argument('--window-size=1920,1080')
 
 options.add_experimental_option("detach", True) 
 service = Service(ChromeDriverManager().install()) # installs the chrome that this webdriver will use
 driver = webdriver.Chrome(options=options, service=service)
-wait = WebDriverWait(driver, 3)
+
+# defines a default polling time while waiting for elements to load
+wait = WebDriverWait(driver, timeout=10, poll_frequency=1)
 
 
 # load LinkedIn login page
 driver.get("https://www.linkedin.com/uas/login")
-# create a expectation condition for waiting
-wait.until(EC.title_contains("Sign"))
-# switch back to the linkedin tab (Apollo auto opens a second tab)
+# Apollo auto opens a second tab, close it first
+wait.until(lambda x: len(driver.window_handles) == 2)
+driver.switch_to.window(driver.window_handles[1])
+driver.close()
+# wait until LinkedIn login page is loaded
 driver.switch_to.window(driver.window_handles[0])
+wait.until(EC.title_contains("Sign"))
 
 # Create tkinter window for inputs
 def run_tkinter():
@@ -231,13 +237,13 @@ def run_tkinter_logging():
 
     # create new tkinter window
     logging_window = tkinter.Tk()
-    logging_window.geometry("700x175")
+    logging_window.geometry("700x170")
     logging_window.title("Scraping...")
     logging_frame = tkinter.Frame(logging_window)
     logging_frame.pack()
 
     # logging window text and progress bar
-    logging_label = tkinter.Label(logging_frame, text=CURRENT_LOG_MESSAGE)
+    logging_label = tkinter.Label(logging_frame, text=CURRENT_LOG_MESSAGE, padx=10, pady=10)
     progress_bar = ttk.Progressbar(logging_frame, orient="horizontal", length=400, mode="indeterminate")
 
     logging_label.grid(row=0, column=0, padx=30, pady=10)
@@ -252,7 +258,8 @@ def run_tkinter_logging():
     logging_window.after(1000, update_logging_window_text)
     logging_window.mainloop()
     return
-# OLD MANUAL LOGIN METHOD (in use for now)
+
+# MAIN FUNCTION
 # run tkinter window
 run_tkinter()
 
@@ -284,8 +291,6 @@ if (driver.title.__contains__("Sign")):
         if (driver.title.__contains__("Sign")):
             signin_error_window()
             run_tkinter()
-    # wait after successful login
-    time.sleep(2.5)
 
 # After tkinter window is closed and login completes, start new thread for logging
 tkinter_logging = Thread(target=run_tkinter_logging)
@@ -294,24 +299,12 @@ print()
 # Update the logger message
 CURRENT_LOG_MESSAGE = "Logged in as " + SESSION_EMAIL + "..."
 tkinter_logging.start()
-"""
-# NEW AUTO LOGIN METHOD unfortunately doesn't work
-# login sequence
-login_username = driver.find_element(By.ID, "username")
-login_password = driver.find_element(By.ID, "password")
-# input credentials
-login_username.send_keys("dssberkeley.tech@gmail.com")
-login_password.send_keys("TechWithZek420", Keys.ENTER)
-time.sleep(5)
-"""
 
 # bypass any account security popups
-
 # "Add phone number for security"
 try:
     driver.find_element(By.XPATH, "//a[contains(text(), 'Add a phone number for security')]")
 except:
-    time.sleep(2.5)
     pass
 else:
     driver.find_element(By.CLASS_NAME, "secondary-action").click()
@@ -321,10 +314,13 @@ else:
 # THIS IS THE LOOP FOR COMPANY AND JOB SEARCH
 search_successful = 0
 while search_successful == 0:
+    # find the search bar
+    wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "search-global-typeahead__typeahead")))
+    #time.sleep(7)
+    #driver.find_element(By.CLASS_NAME, "search-global-typeahead__input")
     search_link = driver.current_url
     print("Searching for \"" + SESSION_COMPANY + " " + SESSION_JOB + "\"...")
-    CURRENT_LOG_MESSAGE = "Searching for " + SESSION_COMPANY + " " + SESSION_JOB + "..."
-    # find the search bar
+    CURRENT_LOG_MESSAGE = "Searching for \"" + SESSION_COMPANY + " " + SESSION_JOB + "\"..."
     # clicking shenanigans, sometimes the search bar is collapsed
     try:
         driver.find_element(By.CLASS_NAME, "search-global-typeahead__collapsed-search-button-icon").click()
@@ -332,8 +328,8 @@ while search_successful == 0:
         pass
     else:
         # stupidest fucking code I have ever written
+        time.sleep(0.2)
         pass
-    time.sleep(0.4)
     search_bar = driver.find_element(By.CLASS_NAME, "search-global-typeahead__input")
     # get the company name as input
     company = SESSION_COMPANY
@@ -342,7 +338,15 @@ while search_successful == 0:
     # clear search bar and search! We assume inputs are valid from cleaning earlier
     search_bar.clear()
     search_bar.send_keys(company + " " + occupation, Keys.ENTER)
-    time.sleep(2.5)
+    
+    # wait until button to see people results shows up
+    try:
+        wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'See all people results')]")))
+    except TimeoutError:
+        print("Timed out while looking for results page! Have you spelled everything correctly?")
+        CURRENT_LOG_MESSAGE = "Searching for " + SESSION_COMPANY + " " + SESSION_JOB + \
+            "... \n Timed out while looking for results page! Have you spelled everything correctly?"
+        driver.get(search_link)
     # after searching, make sure that results are actually shown eg. you're not on the "no results found" page
     try:
         driver.find_element(By.XPATH, "//a[contains(text(), 'See all people results')]")
@@ -357,7 +361,7 @@ while search_successful == 0:
 
 # navigate to the list of all people ("See all people results")
 driver.find_element(By.XPATH, "//a[contains(text(), 'See all people results')]").click()
-time.sleep(5)
+wait.until(EC.visibility_of_all_elements_located((By.CLASS_NAME, "entity-result__title-text")))
 
 # collect all the links to profiles in an array
 all_link_blocks = driver.find_elements(By.CLASS_NAME, "entity-result")
@@ -376,37 +380,6 @@ CURRENT_LOG_MESSAGE = "Found " + str(len(cleaned_profiles)) + " valid links! Sig
 # this doesn't work yet, idk why it's so hard to press the next button
 # next_button = driver.find_element(By.ID, "ember443")
 
-"""
-Plan of action once we are on the list of all profiles:
-1. Grab all profile links and store in array for later use, DONE for first page, need way to do multiple pages of results -- James
-2. Visit profile links one by one
-3. Run Apollo on each page to get emails
-
-4. Package names, profiles, and emails nicely and export -- Preetha
-"""
-"""
-# wait for Apollo login manually lol (will fix later hopefully)
-apollo_login_successful = 0
-while apollo_login_successful == 0:
-    apollo_wait = input("Hit Enter once signed into Apollo to continue! \n")
-    # unmovable Apollo sidebar icon has classname x_bfaN0
-    # movable Apollo sidebar icon has classname   x_ra5C3
-    # check to see if signed into Apollo
-    try:
-        driver.find_element(By.CLASS_NAME, "x_ra5C3")
-    except:
-        apollo_override = input("Apollo login not detected! Try again (hit Enter) or override (enter 'y'): ")
-        # if override, treat as if login was successful
-        if apollo_override.lower() == "y":
-            apollo_login_successful = 1
-            print("Continuing...\n")
-        else:
-            continue
-    else:
-        apollo_login_successful = 1
-
-"""
-
 # login to Apollo
 # store the linkedin tab
 original_window = driver.current_window_handle
@@ -414,13 +387,15 @@ original_window = driver.current_window_handle
 driver.switch_to.new_window('tab')
 # go to apollo
 driver.get("https://app.apollo.io/#/login")
-time.sleep(2)
+wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "zp_kxUTD")))
 try:
     driver.find_element(By.CLASS_NAME, "zp_kxUTD").click()
-    time.sleep(1.7)
+    wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "whsOnd")))
     driver.find_element(By.CLASS_NAME, "whsOnd").send_keys(APOLLO_EMAIL, Keys.ENTER)
-    time.sleep(1.7)
+    time.sleep(1.5)
     driver.find_element(By.CLASS_NAME, "whsOnd").send_keys(APOLLO_PASSWORD, Keys.ENTER)
+    # short wait to make sure Apollo registers the sign in submission
+    time.sleep(1)
     # return to linkedin tab
     driver.switch_to.window(original_window)
 except:
@@ -441,9 +416,8 @@ emails = []
 print("Running one last check to make sure everything is working...")
 CURRENT_LOG_MESSAGE = "Running one last check to make sure everything is working..."
 try:
-    time.sleep(2)
     driver.get(cleaned_profiles[0])
-    time.sleep(6)
+    wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "x_kxUTD")))
     driver.find_element(By.CLASS_NAME, "x_SULq8").text
 except:
     print("Couldn't find information with Apollo! A page may have loaded too slowly or Apollo sign-in failed.")
@@ -482,7 +456,7 @@ else:
 for i in range(1, len(cleaned_profiles)):
     driver.get(cleaned_profiles[i])
     # wait for the Apollo tab to open automatically
-    time.sleep(6)
+    wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "x_kxUTD")))
 
     # grab the name! Adding a try and FAIL if Apollo was overridden and not signed in
     try:
@@ -530,16 +504,16 @@ current_datetime = datetime.now()
 
 file_datetime = current_datetime.strftime("%Y-%m-%d_%H%M%S")
 # Outputs datetime as a string like YYYY-MM-DD_THHMMSS
-output_filepath = SESSION_COMPANY + "_" + file_datetime + ".csv"
+output_filepath = SESSION_COMPANY + "_" + file_datetime
 
 # export
-df.to_csv(output_filepath)
+df.to_csv("output/" + output_filepath + ".csv")
 compression_opts = dict(method='zip',
-                        archive_name='out.csv')  
-df.to_csv('out.zip', index=False,
+                        archive_name=output_filepath + ".csv")  
+df.to_csv("output/" + output_filepath + ".zip", index=False,
           compression=compression_opts)
 
-print("Scraping complete! Outputs stored in", output_filepath)
+print("Scraping complete! Outputs stored in", output_filepath, "in both csv and zip formats.")
 CURRENT_LOG_MESSAGE = "Scraping complete! Outputs stored in " + output_filepath
 SCRAPER_SUCCESS = True
 driver.quit()
